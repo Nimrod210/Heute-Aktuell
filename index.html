@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0b1020">
-<link rel="manifest" href="./manifest.webmanifest">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <title>Heute – Deine Tagesübersicht</title>
 <style>
 :root{color-scheme:dark;--bg:#090e1b;--panel:#121a2b;--panel2:#182338;--line:#27334a;--text:#f3f6ff;--muted:#9caac2;--blue:#7c9cff;--cyan:#74d7df;--gold:#ffcc7a}
@@ -34,18 +34,16 @@
 </section>
 <section class="card">
   <div class="cardhead"><h3>▦ Deine Termine</h3><span class="sub">Google Kalender</span></div>
-  <div class="empty" style="margin-bottom:13px">Verbinde Google Kalender, damit deine heutigen Termine hier erscheinen. In diesem Prototyp ist noch keine Anmeldung eingerichtet.</div>
+  <div class="empty" id="calendarMessage" style="margin-bottom:13px">Verbinde dein Google-Konto, um heutige Termine und die kommenden Tage anzuzeigen. Die App erhält nur Lesezugriff.</div>
   <button class="btn primary" id="connectCalendar">Google Kalender verbinden</button>
-  <div class="events" id="events" style="margin-top:16px">
-    <div class="event"><div class="time">Heute</div><div class="stripe"></div><div><h4>Deine Termine erscheinen hier</h4><p>Nach der sicheren Google-Anmeldung</p></div></div>
-  </div>
-  <p class="sub" style="margin:14px 0 0">Datenschutz: Die Kalenderverbindung muss über eine eigene OAuth-Konfiguration eingerichtet werden.</p>
+  <div class="events" id="events" style="margin-top:16px"><div class="event"><div class="time">Heute</div><div class="stripe"></div><div><h4>Noch nicht verbunden</h4><p>Nach der Google-Anmeldung erscheinen deine Termine hier.</p></div></div></div>
+  <p class="sub" style="margin:14px 0 0">Nur-Lese-Zugriff: HEUTE kann Termine ansehen, aber nicht ändern oder löschen.</p>
 </section>
 <section class="card wide">
   <div class="cardhead"><div><h3>◎ Nachrichten</h3><div class="sub">Deutschland und die Welt</div></div><button class="btn" id="refreshNews">Meldungen laden ↻</button></div>
   <div class="news-controls" id="filters"><button class="active" data-filter="all">Top-News</button><button data-filter="de">Deutschland</button><button data-filter="world">Welt</button><button data-filter="science">Wissenschaft</button><button data-filter="business">Wirtschaft</button></div>
   <div class="newslist" id="newslist" style="margin-top:17px">
-    <div class="news"><div class="newsicon">📰</div><div><div class="category">Startklar</div><h4>Aktuelle Nachrichten werden geladen</h4><p>Die erste Version nutzt öffentliche RSS-Quellen. Eine stabile Bereitstellung kann einen kleinen Server oder RSS-Dienst benötigen.</p></div></div>
+    <div class="news"><div class="newsicon">📰</div><div><div class="category">Startklar</div><h4>Aktuelle Nachrichten werden geladen</h4><p>Nachrichten aus öffentlichen RSS-Quellen werden geladen.</p></div></div>
   </div>
   <p class="sub" id="newsStatus" style="margin-top:16px">Nachrichtenquelle wird geprüft …</p>
 </section>
@@ -63,19 +61,32 @@ function weatherText(code){if(code===0)return ['☀️','Klar'];if([1,2].include
 async function loadWeather(){ $('weatherStatus').textContent='Lade aktuelle Wetterdaten …';try{const url='https://api.open-meteo.com/v1/forecast?latitude=49.97&longitude=8.57&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,weather_code&forecast_days=1&timezone=Europe%2FBerlin';const r=await fetch(url);if(!r.ok)throw Error('Wetterdienst nicht erreichbar');const d=await r.json();const c=d.current;const [ico,desc]=weatherText(c.weather_code);$('weatherIcon').textContent=ico;$('temp').textContent=Math.round(c.temperature_2m);$('weatherDesc').textContent=desc;$('feels').textContent='Gefühlt: '+Math.round(c.apparent_temperature)+'°C';$('rain').textContent='Niederschlag: '+c.precipitation+' mm';$('wind').textContent='Wind: '+Math.round(c.wind_speed_10m)+' km/h';$('weatherStatus').textContent='Aktualisiert: '+new Intl.DateTimeFormat('de-DE',{hour:'2-digit',minute:'2-digit'}).format(new Date());let idx=d.hourly.time.findIndex(t=>new Date(t).getTime()>=Date.now());if(idx<0)idx=0;let out='';for(let n=0;n<4;n++){let i=Math.min(idx+n*3,d.hourly.time.length-1);let [ic]=weatherText(d.hourly.weather_code[i]);out+=`<div class="hour"><span>${new Intl.DateTimeFormat('de-DE',{hour:'2-digit'}).format(new Date(d.hourly.time[i]))} Uhr</span><b>${ic}</b><strong>${Math.round(d.hourly.temperature_2m[i])}°</strong></div>`}$('forecast').innerHTML=out}catch(e){$('weatherStatus').textContent='Live-Wetter nicht erreichbar – bitte Internetverbindung prüfen.';$('weatherDesc').textContent='Wetterdaten derzeit nicht verfügbar';}}
 $('refreshWeather').onclick=loadWeather;loadWeather();
 const feeds=[
- {url:'https://www.tagesschau.de/infoservices/alle-meldungen-100~rss2.xml',filter:'de',name:'tagesschau',cat:'Deutschland',icon:'🇩🇪'},
- {url:'https://rss.dw.com/rdf/rss-en-world',filter:'world',name:'Deutsche Welle',cat:'Welt',icon:'🌍'},
- {url:'https://www.science.org/rss/news_current.xml',filter:'science',name:'Science',cat:'Wissenschaft',icon:'🔬'},
- {url:'https://www.tagesschau.de/wirtschaft/index~rss2.xml',filter:'business',name:'tagesschau',cat:'Wirtschaft',icon:'📈'}
+ {url:'https://news.google.com/rss?hl=de&gl=DE&ceid=DE:de',filter:'de',name:'Google News',cat:'Deutschland',icon:'🇩🇪'},
+ {url:'https://news.google.com/rss?hl=de&gl=DE&ceid=DE:de&topic=WORLD',filter:'world',name:'Google News',cat:'Welt',icon:'🌍'},
+ {url:'https://news.google.com/rss?hl=de&gl=DE&ceid=DE:de&topic=TECHNOLOGY',filter:'science',name:'Google News',cat:'Wissenschaft & Technik',icon:'🔬'},
+ {url:'https://news.google.com/rss?hl=de&gl=DE&ceid=DE:de&topic=BUSINESS',filter:'business',name:'Google News',cat:'Wirtschaft',icon:'📈'}
 ];
 let allNews=[],activeFilter='all';
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function getFeed(feed){const proxies=['https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(feed.url)];for(const u of proxies){try{const r=await fetch(u);if(!r.ok)continue;const d=await r.json();if(d.status==='ok'&&d.items?.length)return d.items.slice(0,7).map(x=>({title:x.title,link:x.link,description:(x.description||'').replace(/<[^>]*>/g,'').slice(0,160),date:x.pubDate,category:feed.cat,filter:feed.filter,source:feed.name,icon:feed.icon}));}catch(e){}}return []}
+async function getFeed(feed){
+ const proxies=[
+  async()=>{const r=await fetch('https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(feed.url));if(!r.ok)throw Error('RSS2JSON');const d=await r.json();if(d.status!=='ok'||!d.items?.length)throw Error('No items');return d.items.map(x=>({title:x.title,link:x.link,description:(x.description||'').replace(/<[^>]*>/g,'').slice(0,160),date:x.pubDate}));},
+  async()=>{const r=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(feed.url));if(!r.ok)throw Error('AllOrigins');const xml=await r.text();const doc=new DOMParser().parseFromString(xml,'text/xml');return [...doc.querySelectorAll('item')].map(x=>({title:x.querySelector('title')?.textContent||'',link:x.querySelector('link')?.textContent||'',description:(x.querySelector('description')?.textContent||'').replace(/<[^>]*>/g,'').slice(0,160),date:x.querySelector('pubDate')?.textContent||''}));}
+ ];
+ for(const load of proxies){try{const items=await load();if(items.length)return items.slice(0,6).map(x=>({...x,category:feed.cat,filter:feed.filter,source:feed.name,icon:feed.icon}));}catch(e){}}
+ return []
+}
 function renderNews(){let items=activeFilter==='all'?allNews:allNews.filter(x=>x.filter===activeFilter);if(!items.length){$('newslist').innerHTML='<div class="empty">Für diese Kategorie konnten keine Meldungen geladen werden. Bitte später erneut versuchen.</div>';return}$('newslist').innerHTML=items.slice(0,12).map(x=>`<article class="news"><div class="newsicon">${x.icon}</div><div><div class="category">${esc(x.category)} · ${esc(x.source)}</div><h4><a href="${esc(x.link)}" target="_blank" rel="noopener">${esc(x.title)}</a></h4><p>${esc(x.description||'Zum vollständigen Artikel öffnen.')}</p></div></article>`).join('')}
-async function loadNews(){ $('newsStatus').textContent='Lade aktuelle Meldungen aus öffentlichen RSS-Quellen …';const results=await Promise.all(feeds.map(getFeed));allNews=results.flat().sort((a,b)=>new Date(b.date)-new Date(a.date));renderNews();$('newsStatus').textContent=allNews.length?`Zuletzt geladen: ${new Intl.DateTimeFormat('de-DE',{hour:'2-digit',minute:'2-digit'}).format(new Date())}. Artikel öffnen die jeweilige Originalquelle.`:'RSS-Quellen sind im Browser nicht erreichbar. Für zuverlässigen Live-Betrieb sollte ein kleiner RSS-Proxy eingerichtet werden.'}
+async function loadNews(){ $('newsStatus').textContent='Lade aktuelle Meldungen aus öffentlichen RSS-Quellen …';const results=await Promise.all(feeds.map(getFeed));allNews=results.flat().sort((a,b)=>new Date(b.date)-new Date(a.date));renderNews();$('newsStatus').textContent=allNews.length?`Zuletzt geladen: ${new Intl.DateTimeFormat('de-DE',{hour:'2-digit',minute:'2-digit'}).format(new Date())}. Artikel öffnen die jeweilige Originalquelle.`:'Nachrichtenquellen sind momentan nicht erreichbar. Bitte später erneut laden.'}
 $('refreshNews').onclick=loadNews;$('filters').addEventListener('click',e=>{if(!e.target.matches('button'))return;document.querySelectorAll('#filters button').forEach(b=>b.classList.toggle('active',b===e.target));activeFilter=e.target.dataset.filter;renderNews()});loadNews();
-$('connectCalendar').onclick=()=>toast('Nächster Schritt: Google Cloud-Projekt und OAuth-Anmeldung konfigurieren. Bitte niemals dein Google-Passwort in diese App eingeben.');
-$('settings').onclick=()=>toast('Einstellungen folgen: Standort, Nachrichtenquellen und Morgenstart. Der Demo-Standort ist aktuell Mörfelden-Walldorf.');
+const GOOGLE_CLIENT_ID='906173283814-c6ugr76bq0kum47tct9vl2vbia9qd2me.apps.googleusercontent.com';
+let tokenClient=null,calendarToken=null;
+function calendarDate(d){return new Intl.DateTimeFormat('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'}).format(d)}
+function calendarTime(s,allDay){if(allDay)return 'Ganztägig';return new Intl.DateTimeFormat('de-DE',{hour:'2-digit',minute:'2-digit'}).format(new Date(s))}
+function renderEvents(items){const el=$('events');if(!items.length){el.innerHTML='<div class="empty">Keine Termine in den kommenden 7 Tagen.</div>';return;}el.innerHTML=items.map(ev=>{const start=ev.start.dateTime||ev.start.date;const allDay=!ev.start.dateTime;const d=new Date(start+(allDay?'T12:00:00':''));const day=d.toDateString()===new Date().toDateString()?'HEUTE':calendarDate(d);return `<div class="event"><div class="time">${esc(day)}<br>${esc(calendarTime(start,allDay))}</div><div class="stripe"></div><div><h4>${esc(ev.summary||'(Ohne Titel)')}</h4><p>${ev.location?esc(ev.location)+' · ':''}${ev.end?.dateTime?'Bis '+esc(calendarTime(ev.end.dateTime,false)):''}</p></div></div>`}).join('')}
+async function fetchCalendar(){const now=new Date();const until=new Date(now.getTime()+7*86400000);const url='https://www.googleapis.com/calendar/v3/calendars/primary/events?maxResults=50&singleEvents=true&orderBy=startTime&timeMin='+encodeURIComponent(now.toISOString())+'&timeMax='+encodeURIComponent(until.toISOString());const r=await fetch(url,{headers:{Authorization:'Bearer '+calendarToken}});if(!r.ok){if(r.status===401){calendarToken=null;throw Error('Die Anmeldung ist abgelaufen. Bitte erneut verbinden.')}throw Error('Google Kalender meldet Fehler '+r.status)}const data=await r.json();renderEvents(data.items||[]);$('calendarMessage').textContent='Verbunden · Termine für die nächsten 7 Tage · Nur-Lese-Zugriff';$('connectCalendar').textContent='Kalender aktualisieren';}
+function connectCalendar(){if(!window.google?.accounts?.oauth2){toast('Google-Anmeldung lädt noch. Bitte kurz warten und erneut tippen.');return;}if(!tokenClient){tokenClient=google.accounts.oauth2.initTokenClient({client_id:GOOGLE_CLIENT_ID,scope:'https://www.googleapis.com/auth/calendar.events.readonly',callback:async(resp)=>{if(resp.error){$('calendarMessage').textContent='Anmeldung fehlgeschlagen: '+resp.error;toast('Google-Anmeldung fehlgeschlagen. Bitte Konfiguration prüfen.');return;}calendarToken=resp.access_token;try{await fetchCalendar();toast('Google Kalender verbunden.');}catch(e){$('calendarMessage').textContent=e.message;toast(e.message);}}});}tokenClient.requestAccessToken({prompt:calendarToken?'':'consent'});}
+$('connectCalendar').onclick=connectCalendar;
+$('settings').onclick=()=>toast('Standort und weitere Einstellungen folgen. Der aktuelle Wetter-Standort ist Mörfelden-Walldorf.');
 </script>
-<script>if ("serviceWorker" in navigator) window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));</script>
 </body></html>
